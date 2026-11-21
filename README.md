@@ -5,7 +5,7 @@
 # TorchEquip
 
 **A lightweight, zero-overhead crossplay plugin built specifically for Minecraft Java 26.3 servers running GeyserMC.**  
-**Designed to bridge the off-hand gap between Java and Bedrock Edition, allowing PC, Mobile, and Console players to freely equip any torch into their shield slot.**  
+**Designed to bridge the off-hand gap between Java and Bedrock Edition, allowing PC, Mobile, and Console players to freely equip any torch or lantern into their shield slot.**  
 **Works seamlessly out of the box with no commands, no permissions, and full support for both inventory menu equipping and instant quick-swap.**
 
 [Releases](../../releases) • [GeyserMC](https://geysermc.org) • [Report an Issue](../../issues)
@@ -15,7 +15,7 @@
 ## What is TorchEquip?
 **TorchEquip** is a focused, zero-overhead plugin designed for **Minecraft Java 26.3** servers running **GeyserMC**. 
 
-By default, Minecraft Bedrock Edition restricts players from placing regular torches into the off-hand (shield) slot through the inventory interface. TorchEquip removes this restriction seamlessly, giving Mobile, Console, and Windows Bedrock players the exact same off-hand torch freedom as Java Edition players — without adding commands, permissions, or bloated configuration files.
+By default, Minecraft Bedrock Edition restricts players from placing torches and lanterns into the off-hand (shield) slot through the inventory interface. TorchEquip removes this restriction seamlessly, giving Mobile, Console, and Windows Bedrock players the exact same off-hand freedom as Java Edition players — without adding commands, permissions, or bloated configuration files.
 
 ---
 
@@ -30,10 +30,12 @@ By default, Minecraft Bedrock Edition restricts players from placing regular tor
 ---
 
 ## Features & Mechanics
-- **Native GeyserMC Integration:** Intercepts Bedrock inventory interactions cleanly so mobile and console players can equip torches just like a shield.
-- **Inventory Menu Equipping (PC & Mobile):** Open your inventory, select any torch, and place or tap it directly into the off-hand slot next to your player model.
-- **Instant Quick-Swap:** Hold a torch in your main hand and press `F` (Java Edition) or trigger your off-hand swap action (Bedrock/Geyser) to equip it immediately.
-- **All Torch Variants Supported:** `TORCH`, `SOUL_TORCH`, `REDSTONE_TORCH`, and `COPPER_TORCH`.
+- **Native GeyserMC Integration:** Intercepts Bedrock inventory interactions cleanly so mobile and console players can equip and unequip torches and lanterns just like a shield.
+- **Inventory Menu Equipping (PC & Mobile):** Open your inventory, select any supported torch or lantern, and place or tap it directly into the off-hand slot next to your player model.
+- **Instant Quick-Swap:** Hold a torch or lantern in your main hand and press `F` (Java Edition) or trigger your off-hand swap action (Bedrock/Geyser) to equip it immediately.
+- **Supported Torches & Lanterns:**
+  - **Torches:** `TORCH`, `SOUL_TORCH`, `REDSTONE_TORCH`, and `COPPER_TORCH`.
+  - **Lanterns:** `LANTERN`, `SOUL_LANTERN`, and `COPPER_LANTERN`.
 - **Plug-and-Play Architecture:** No commands to memorize, no permissions to configure, and virtually zero impact on server tick performance (TPS).
 
 ---
@@ -49,12 +51,12 @@ By default, Minecraft Bedrock Edition restricts players from placing regular tor
 ## How to Use
 **Through the Inventory Screen (Java & Bedrock/Mobile):**  
 **1.** Open your player inventory.  
-**2.** Pick up or tap a torch from your inventory.  
-**3.** Click or tap directly on the **off-hand (shield) slot** to equip it.
+**2.** Pick up or tap a torch or lantern from your inventory.  
+**3.** Click or tap directly on the **off-hand (shield) slot** to equip or unequip it.
 
 **Through Quick-Swap:**  
-**Java Edition:** Hold a torch in your main hand and press `F`.  
-**Bedrock Edition:** Hold a torch and use your configured Geyser off-hand swap button/emote.
+**Java Edition:** Hold a torch or lantern in your main hand and press `F`.  
+**Bedrock Edition:** Hold a torch or lantern and use your configured Geyser off-hand swap button/emote.
 
 ---
 
