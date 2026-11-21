@@ -1,0 +1,20 @@
+name: Offhand Bedrock + Java
+on: [push]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+      - run: mvn package
+      - name: Publicar na aba Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: Offhand Bedrock + Java Menu 26.3
+          files: target/*.jar
