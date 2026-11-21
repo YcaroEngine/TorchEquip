@@ -16,5 +16,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: TorchEquip 26.3
+          name: TorchEquip - Version 26.3
           files: target/*.jar
+
