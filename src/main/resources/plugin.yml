@@ -1,0 +1,4 @@
+name: Offhand-Bedrock-Java-Menu
+version: 1.0.0
+main: com.oftalafe.offhand.OffhandPlugin
+api-version: '26.3'
