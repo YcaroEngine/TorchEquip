@@ -1,0 +1,4 @@
+name: TorchEquip
+version: 1.0.0
+main: org.offhand.core.TorchEquipPlugin
+api-version: '26.3'
