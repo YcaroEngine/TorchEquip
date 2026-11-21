@@ -20,17 +20,25 @@ public class OffhandPlugin extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(this, this);
     }
 
-    // 1. Equipa apertando F (Java) ou troca de mão (Bedrock/Geyser)
+    private boolean ehTochaOuLampiao(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return false;
+        return switch (item.getType()) {
+            case TORCH, SOUL_TORCH, REDSTONE_TORCH, COPPER_TORCH,
+                 LANTERN, SOUL_LANTERN, COPPER_LANTERN -> true;
+            default -> false;
+        };
+    }
+
+    // 1. Equipa apenas tochas e lampiões apertando F (Java) ou troca de mão (Bedrock/Geyser)
     @EventHandler
     public void aoTrocarDeMao(PlayerSwapHandItemsEvent event) {
-        ItemStack item = event.getOffHandItem();
-        if (item != null && item.getType() != Material.AIR) {
+        if (ehTochaOuLampiao(event.getOffHandItem())) {
             Player player = event.getPlayer();
             player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
         }
     }
 
-    // 2. Força a troca no slot do escudo (Slot 40) pelo menu no Mobile (Bedrock/Geyser) e Java
+    // 2. Permite equipar e desequipar tochas e lampiões pelo menu no Mobile (Bedrock/Geyser) e Java
     @EventHandler(priority = EventPriority.HIGHEST)
     public void aoMoverNoInventario(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -42,14 +50,22 @@ public class OffhandPlugin extends JavaPlugin implements Listener {
             ItemStack noCursor = event.getCursor();
             ItemStack noEscudo = player.getInventory().getItemInOffHand();
 
-            // Se o jogador tocou no slot do escudo segurando um item no menu (Mobile/Java)
-            if (noCursor != null && noCursor.getType() != Material.AIR) {
+            // Equipar tocha/lampião no slot vazio ou trocar por outro
+            if (ehTochaOuLampiao(noCursor)) {
                 event.setCancelled(true);
                 player.getInventory().setItemInOffHand(noCursor.clone());
                 player.setItemOnCursor(noEscudo.clone());
                 player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
+                return;
+            }
+
+            // Desequipar a tocha/lampião ao tocar no slot do escudo com o cursor vazio no Mobile
+            if ((noCursor == null || noCursor.getType() == Material.AIR) && ehTochaOuLampiao(noEscudo)) {
+                event.setCancelled(true);
+                player.setItemOnCursor(noEscudo.clone());
+                player.getInventory().setItemInOffHand(null);
+                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 0.9f);
             }
         }
     }
 }
-
