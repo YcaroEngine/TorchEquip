@@ -3,6 +3,11 @@ package org.offhand.core;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,43 +21,112 @@ import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class TorchEquipPlugin extends JavaPlugin implements Listener {
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class TorchEquipPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+
+    private final Set<Material> allowedItems = new HashSet<>();
+    private boolean enabledMode;
 
     @Override
     public void onEnable() {
+        if (!getDataFolder().exists()) {
+            getDataFolder().mkdirs();
+        }
+        saveDefaultConfig();
+        loadSettings();
+
         Bukkit.getPluginManager().registerEvents(this, this);
+
+        var cmd = getCommand("torchequip");
+        if (cmd != null) {
+            cmd.setExecutor(this);
+            cmd.setTabCompleter(this);
+        }
     }
 
-    private boolean isLightSource(ItemStack item) {
+    private void loadSettings() {
+        reloadConfig();
+        String mode = getConfig().getString("mode", "on").trim().toLowerCase();
+        enabledMode = mode.equals("on") || mode.equals("true");
+
+        allowedItems.clear();
+        for (String name : getConfig().getStringList("items")) {
+            addMaterial(name);
+        }
+        for (String name : getConfig().getStringList("extra-items")) {
+            addMaterial(name);
+        }
+    }
+
+    private void addMaterial(String name) {
+        if (name == null || name.isBlank()) return;
+        Material mat = Material.matchMaterial(name.trim().toUpperCase());
+        if (mat != null) {
+            allowedItems.add(mat);
+        }
+    }
+
+    private boolean isAllowed(ItemStack item) {
+        if (!enabledMode) return false;
         if (item == null || item.getType() == Material.AIR) return false;
-        return switch (item.getType()) {
-            case TORCH, SOUL_TORCH, REDSTONE_TORCH, COPPER_TORCH,
-                 LANTERN, SOUL_LANTERN, COPPER_LANTERN -> true;
-            default -> false;
-        };
+        return allowedItems.contains(item.getType());
     }
 
-    // 1. Tecla F (Java) ou botão de troca de mão (Bedrock/Geyser) - Sobrevivência e Criativo
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof ConsoleCommandSender)) {
+            return true;
+        }
+
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            if (!getDataFolder().exists()) {
+                getDataFolder().mkdirs();
+            }
+            saveDefaultConfig();
+            loadSettings();
+            sender.sendMessage("[TorchEquip] Configuration reloaded! (mode: " + (enabledMode ? "on" : "off") + ")");
+            return true;
+        }
+
+        sender.sendMessage("[TorchEquip] Usage: torchequip reload");
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (sender instanceof ConsoleCommandSender && args.length == 1 && "reload".startsWith(args[0].toLowerCase())) {
+            return List.of("reload");
+        }
+        return Collections.emptyList();
+    }
+
+    // 1. Tecla F (Java) ou troca de mao (Bedrock/Geyser)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHandSwap(PlayerSwapHandItemsEvent event) {
+        if (!enabledMode) return;
         ItemStack goingToOffhand = event.getOffHandItem();
         ItemStack goingToMain = event.getMainHandItem();
 
-        if (isLightSource(goingToOffhand) || isLightSource(goingToMain)) {
+        if (isAllowed(goingToOffhand) || isAllowed(goingToMain)) {
             event.setCancelled(false);
             Player player = event.getPlayer();
             Bukkit.getScheduler().runTaskLater(this, () -> {
                 player.updateInventory();
-                if (isLightSource(player.getInventory().getItemInOffHand())) {
+                if (isAllowed(player.getInventory().getItemInOffHand())) {
                     player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
                 }
             }, 1L);
         }
     }
 
-    // 2. Menu do Inventário no Sobrevivência (Java & Bedrock/Mobile)
+    // 2. Menu do Inventario no Sobrevivencia (Java & Bedrock/Mobile)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
+        if (!enabledMode) return;
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event instanceof InventoryCreativeEvent) return;
         if (event.getView().getTopInventory().getType() != InventoryType.CRAFTING) return;
@@ -62,10 +136,9 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
         ItemStack clicked = event.getCurrentItem();
         ItemStack offhand = player.getInventory().getItemInOffHand();
 
-        // Toque duplo / Shift-Click na tocha ou lampião para ir direto ao slot do escudo
         if ((event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT)
                 && rawSlot != 45
-                && isLightSource(clicked)
+                && isAllowed(clicked)
                 && (offhand == null || offhand.getType() == Material.AIR)) {
             event.setCancelled(true);
             player.getInventory().setItemInOffHand(clicked.clone());
@@ -75,9 +148,8 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
             return;
         }
 
-        // Clique ou toque direto no slot do escudo (RawSlot 45)
         if (rawSlot == 45) {
-            if (isLightSource(cursor)) {
+            if (isAllowed(cursor)) {
                 event.setCancelled(true);
                 player.getInventory().setItemInOffHand(cursor.clone());
                 player.setItemOnCursor(offhand.clone());
@@ -86,7 +158,7 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
                 return;
             }
 
-            if ((cursor == null || cursor.getType() == Material.AIR) && isLightSource(offhand)) {
+            if ((cursor == null || cursor.getType() == Material.AIR) && isAllowed(offhand)) {
                 event.setCancelled(true);
                 player.setItemOnCursor(offhand.clone());
                 player.getInventory().setItemInOffHand(null);
@@ -96,13 +168,14 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // 3. Arrastar no inventário (Java) para o slot do escudo
+    // 3. Arrastar no inventario (Java)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryDrag(InventoryDragEvent event) {
+        if (!enabledMode) return;
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event.getView().getTopInventory().getType() != InventoryType.CRAFTING) return;
 
-        if (event.getRawSlots().contains(45) && isLightSource(event.getOldCursor())) {
+        if (event.getRawSlots().contains(45) && isAllowed(event.getOldCursor())) {
             event.setCancelled(true);
             ItemStack offhand = player.getInventory().getItemInOffHand();
             player.getInventory().setItemInOffHand(event.getOldCursor().clone());
@@ -114,19 +187,20 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // 4. Menu do Inventário no Modo Criativo (Java & Bedrock/Mobile)
+    // 4. Menu do Inventario no Modo Criativo (Java & Bedrock/Mobile)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onCreativeClick(InventoryCreativeEvent event) {
+        if (!enabledMode) return;
         if (!(event.getWhoClicked() instanceof Player player)) return;
+
         int rawSlot = event.getRawSlot();
         ItemStack cursor = event.getCursor();
         ItemStack clicked = event.getCurrentItem();
         ItemStack offhand = player.getInventory().getItemInOffHand();
 
-        // Shift-Click / Toque duplo no Criativo
         if ((event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT)
                 && rawSlot != 45
-                && isLightSource(clicked)
+                && isAllowed(clicked)
                 && (offhand == null || offhand.getType() == Material.AIR)) {
             event.setCancelled(true);
             player.getInventory().setItemInOffHand(clicked.clone());
@@ -136,9 +210,8 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
             return;
         }
 
-        // Clique ou toque direto no slot do escudo (RawSlot 45) no Criativo
         if (rawSlot == 45) {
-            if (isLightSource(cursor)) {
+            if (isAllowed(cursor)) {
                 event.setCancelled(true);
                 player.getInventory().setItemInOffHand(cursor.clone());
                 player.setItemOnCursor(offhand.clone());
@@ -147,7 +220,7 @@ public class TorchEquipPlugin extends JavaPlugin implements Listener {
                 return;
             }
 
-            if ((cursor == null || cursor.getType() == Material.AIR) && isLightSource(offhand)) {
+            if ((cursor == null || cursor.getType() == Material.AIR) && isAllowed(offhand)) {
                 event.setCancelled(true);
                 player.setItemOnCursor(offhand.clone());
                 player.getInventory().setItemInOffHand(null);
