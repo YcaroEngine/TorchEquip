@@ -1,4 +1,4 @@
-name: TorchEquip
+name: Release TorchEquip
 on: [push]
 permissions:
   contents: write
@@ -18,4 +18,3 @@ jobs:
           tag_name: v1.0.0
           name: TorchEquip - Version 26.3
           files: target/*.jar
-
