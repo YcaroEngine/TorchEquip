@@ -4,5 +4,5 @@ main: org.offhand.core.TorchEquipPlugin
 api-version: '26.3'
 commands:
   torchequip:
-    description: Reload TorchEquip configuration from console
+    description: Reload TorchEquip configuration and regenerate Geyser .mcpack from console
     usage: torchequip reload
