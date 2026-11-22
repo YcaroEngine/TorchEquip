@@ -1,0 +1,24 @@
+# TorchEquip Configuration
+# File location: plugins/TorchEquip/config.yml
+
+# Set to "on" to enable the plugin or "off" to disable it
+mode: on
+
+# Default torches and lanterns allowed in the off-hand
+items:
+  - TORCH
+  - SOUL_TORCH
+  - REDSTONE_TORCH
+  - COPPER_TORCH
+  - LANTERN
+  - SOUL_LANTERN
+  - COPPER_LANTERN
+
+# Add any extra Minecraft item IDs here to allow them in the off-hand
+extra-items: []
+# Examples:
+# extra-items:
+#   - BLAZE_ROD
+#   - GLOWSTONE
+#   - SEA_LANTERN
+#   - DIAMOND_SWORD
