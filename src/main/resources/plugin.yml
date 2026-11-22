@@ -4,10 +4,5 @@ main: org.offhand.core.TorchEquipPlugin
 api-version: '26.3'
 commands:
   torchequip:
-    description: Manage TorchEquip configuration
-    usage: /torchequip reload
-    permission: torchequip.admin
-permissions:
-  torchequip.admin:
-    description: Allows reloading the TorchEquip configuration
-    default: op
+    description: Reload TorchEquip configuration from console
+    usage: torchequip reload
