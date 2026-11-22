@@ -1,11 +1,11 @@
 # TorchEquip Configuration
 # File location: plugins/TorchEquip/config.yml
 
-# Set to "on" to enable the plugin or "off" to disable it
-mode: on
+# When true, deletes the old TorchEquip.mcpack on startup/reload and generates a new one with current settings
+auto-generate-geyser-pack: true
 
 # Default torches and lanterns allowed in the off-hand
-items:
+default-items:
   - TORCH
   - SOUL_TORCH
   - REDSTONE_TORCH
@@ -14,11 +14,8 @@ items:
   - SOUL_LANTERN
   - COPPER_LANTERN
 
-# Add any extra Minecraft item IDs here to allow them in the off-hand
-extra-items: []
+# Add any extra original Minecraft item names anywhere below using: New = ITEM_NAME
+extra-items:
 # Examples:
-# extra-items:
-#   - BLAZE_ROD
-#   - GLOWSTONE
-#   - SEA_LANTERN
-#   - DIAMOND_SWORD
+# New = BLAZE_ROD
+# New = GLOWSTONE
