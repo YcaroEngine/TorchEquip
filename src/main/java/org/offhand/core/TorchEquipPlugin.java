@@ -2,231 +2,166 @@ package org.offhand.core;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.Sound;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.Collections;
-import java.util.HashSet;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
-public class TorchEquipPlugin extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+public class TorchEquipPlugin extends JavaPlugin implements Listener {
 
-    private final Set<Material> allowedItems = new HashSet<>();
-    private boolean enabledMode;
+    private static final List<Material> LIGHT_ITEMS = List.of(
+            Material.TORCH,
+            Material.SOUL_TORCH,
+            Material.REDSTONE_TORCH,
+            Material.COPPER_TORCH,
+            Material.LANTERN,
+            Material.SOUL_LANTERN,
+            Material.COPPER_LANTERN
+    );
 
     @Override
     public void onEnable() {
-        if (!getDataFolder().exists()) {
-            getDataFolder().mkdirs();
-        }
-        saveDefaultConfig();
-        loadSettings();
-
+        generateGeyserMcpack();
         Bukkit.getPluginManager().registerEvents(this, this);
-
-        var cmd = getCommand("torchequip");
-        if (cmd != null) {
-            cmd.setExecutor(this);
-            cmd.setTabCompleter(this);
-        }
     }
 
-    private void loadSettings() {
-        reloadConfig();
-        String mode = getConfig().getString("mode", "on").trim().toLowerCase();
-        enabledMode = mode.equals("on") || mode.equals("true");
-
-        allowedItems.clear();
-        for (String name : getConfig().getStringList("items")) {
-            addMaterial(name);
-        }
-        for (String name : getConfig().getStringList("extra-items")) {
-            addMaterial(name);
-        }
-    }
-
-    private void addMaterial(String name) {
-        if (name == null || name.isBlank()) return;
-        Material mat = Material.matchMaterial(name.trim().toUpperCase());
-        if (mat != null) {
-            allowedItems.add(mat);
-        }
-    }
-
-    private boolean isAllowed(ItemStack item) {
-        if (!enabledMode) return false;
+    private boolean isTorchOrLantern(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return false;
-        return allowedItems.contains(item.getType());
+        return LIGHT_ITEMS.contains(item.getType());
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof ConsoleCommandSender)) {
-            return true;
-        }
+    private void generateGeyserMcpack() {
+        try {
+            File pluginsDir = getDataFolder().getParentFile();
+            if (pluginsDir == null) return;
 
-        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
-            if (!getDataFolder().exists()) {
-                getDataFolder().mkdirs();
+            File geyserDir = new File(pluginsDir, "Geyser-Spigot");
+            if (geyserDir.exists() && geyserDir.isDirectory()) {
+                File geyserPacks = new File(geyserDir, "packs");
+                if (!geyserPacks.exists()) {
+                    geyserPacks.mkdirs();
+                }
+                File targetPack = new File(geyserPacks, "TorchEquip.mcpack");
+                writeMcpack(targetPack);
+                getLogger().info("Generated Bedrock pack at: plugins/Geyser-Spigot/packs/TorchEquip.mcpack");
             }
-            saveDefaultConfig();
-            loadSettings();
-            sender.sendMessage("[TorchEquip] Configuration reloaded! (mode: " + (enabledMode ? "on" : "off") + ")");
-            return true;
+        } catch (Exception e) {
+            getLogger().warning("Failed to generate TorchEquip.mcpack: " + e.getMessage());
         }
-
-        sender.sendMessage("[TorchEquip] Usage: torchequip reload");
-        return true;
     }
 
-    @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (sender instanceof ConsoleCommandSender && args.length == 1 && "reload".startsWith(args[0].toLowerCase())) {
-            return List.of("reload");
+    private void writeMcpack(File targetFile) throws Exception {
+        String manifestJson = """
+                {
+                  "format_version": 2,
+                  "header": {
+                    "name": "TorchEquip Off-Hand",
+                    "description": "Enables equipping all torches and lanterns in the off-hand slot.",
+                    "uuid": "8f3a1c20-7b4e-4d9a-9c12-45e8a1b2c3d4",
+                    "version":,
+                    "min_engine_version": [1, 21, 0]
+                  },
+                  "modules": [
+                    {
+                      "type": "data",
+                      "uuid": "3e9b7d10-2a6f-4c8b-8e31-99a0b1c2d3e4",
+                      "version": [1, 0, 0]
+                    }
+                  ]
+                }
+                """;
+
+        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(targetFile))) {
+            zos.putNextEntry(new ZipEntry("manifest.json"));
+            zos.write(manifestJson.getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+
+            for (Material mat : LIGHT_ITEMS) {
+                String id = mat.getKey().getKey();
+                String itemJson = """
+                        {
+                          "format_version": "1.21.0",
+                          "minecraft:item": {
+                            "description": {
+                              "identifier": "minecraft:%s"
+                            },
+                            "components": {
+                              "minecraft:allow_off_hand": true
+                            }
+                          }
+                        }
+                        """.formatted(id);
+
+                zos.putNextEntry(new ZipEntry("items/" + id + ".json"));
+                zos.write(itemJson.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
         }
-        return Collections.emptyList();
     }
 
-    // 1. Tecla F (Java) ou troca de mao (Bedrock/Geyser)
+    // 1. Tecla F (Java & Bedrock)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onHandSwap(PlayerSwapHandItemsEvent event) {
-        if (!enabledMode) return;
-        ItemStack goingToOffhand = event.getOffHandItem();
-        ItemStack goingToMain = event.getMainHandItem();
-
-        if (isAllowed(goingToOffhand) || isAllowed(goingToMain)) {
+        if (isTorchOrLantern(event.getOffHandItem()) || isTorchOrLantern(event.getMainHandItem())) {
             event.setCancelled(false);
             Player player = event.getPlayer();
-            Bukkit.getScheduler().runTaskLater(this, () -> {
-                player.updateInventory();
-                if (isAllowed(player.getInventory().getItemInOffHand())) {
-                    player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
-                }
-            }, 1L);
+            Bukkit.getScheduler().runTaskLater(this, player::updateInventory, 1L);
         }
     }
 
-    // 2. Menu do Inventario no Sobrevivencia (Java & Bedrock/Mobile)
+    // 2. Menu do Inventário - Pegou e moveu para o slot do escudo (Java & Bedrock)
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!enabledMode) return;
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (event instanceof InventoryCreativeEvent) return;
         if (event.getView().getTopInventory().getType() != InventoryType.CRAFTING) return;
+        if (event.getRawSlot() != 45) return;
 
-        int rawSlot = event.getRawSlot();
         ItemStack cursor = event.getCursor();
-        ItemStack clicked = event.getCurrentItem();
         ItemStack offhand = player.getInventory().getItemInOffHand();
 
-        if ((event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT)
-                && rawSlot != 45
-                && isAllowed(clicked)
-                && (offhand == null || offhand.getType() == Material.AIR)) {
+        if (isTorchOrLantern(cursor)) {
             event.setCancelled(true);
-            player.getInventory().setItemInOffHand(clicked.clone());
-            event.setCurrentItem(null);
+            player.getInventory().setItemInOffHand(cursor.clone());
+            player.setItemOnCursor(offhand.clone());
             player.updateInventory();
-            player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
             return;
         }
 
-        if (rawSlot == 45) {
-            if (isAllowed(cursor)) {
-                event.setCancelled(true);
-                player.getInventory().setItemInOffHand(cursor.clone());
-                player.setItemOnCursor(offhand.clone());
-                player.updateInventory();
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
-                return;
-            }
-
-            if ((cursor == null || cursor.getType() == Material.AIR) && isAllowed(offhand)) {
-                event.setCancelled(true);
-                player.setItemOnCursor(offhand.clone());
-                player.getInventory().setItemInOffHand(null);
-                player.updateInventory();
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 0.9f);
-            }
+        if ((cursor == null || cursor.getType() == Material.AIR) && isTorchOrLantern(offhand)) {
+            event.setCancelled(true);
+            player.setItemOnCursor(offhand.clone());
+            player.getInventory().setItemInOffHand(null);
+            player.updateInventory();
         }
     }
 
-    // 3. Arrastar no inventario (Java)
+    // 3. Arrastar no menu do inventário até o slot do escudo
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (!enabledMode) return;
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event.getView().getTopInventory().getType() != InventoryType.CRAFTING) return;
 
-        if (event.getRawSlots().contains(45) && isAllowed(event.getOldCursor())) {
+        if (event.getRawSlots().contains(45) && isTorchOrLantern(event.getOldCursor())) {
             event.setCancelled(true);
             ItemStack offhand = player.getInventory().getItemInOffHand();
             player.getInventory().setItemInOffHand(event.getOldCursor().clone());
             Bukkit.getScheduler().runTaskLater(this, () -> {
                 player.setItemOnCursor(offhand.clone());
                 player.updateInventory();
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
             }, 1L);
-        }
-    }
-
-    // 4. Menu do Inventario no Modo Criativo (Java & Bedrock/Mobile)
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onCreativeClick(InventoryCreativeEvent event) {
-        if (!enabledMode) return;
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-
-        int rawSlot = event.getRawSlot();
-        ItemStack cursor = event.getCursor();
-        ItemStack clicked = event.getCurrentItem();
-        ItemStack offhand = player.getInventory().getItemInOffHand();
-
-        if ((event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT)
-                && rawSlot != 45
-                && isAllowed(clicked)
-                && (offhand == null || offhand.getType() == Material.AIR)) {
-            event.setCancelled(true);
-            player.getInventory().setItemInOffHand(clicked.clone());
-            event.setCurrentItem(null);
-            player.updateInventory();
-            player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
-            return;
-        }
-
-        if (rawSlot == 45) {
-            if (isAllowed(cursor)) {
-                event.setCancelled(true);
-                player.getInventory().setItemInOffHand(cursor.clone());
-                player.setItemOnCursor(offhand.clone());
-                player.updateInventory();
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 1.1f);
-                return;
-            }
-
-            if ((cursor == null || cursor.getType() == Material.AIR) && isAllowed(offhand)) {
-                event.setCancelled(true);
-                player.setItemOnCursor(offhand.clone());
-                player.getInventory().setItemInOffHand(null);
-                player.updateInventory();
-                player.playSound(player.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1f, 0.9f);
-            }
         }
     }
 }
